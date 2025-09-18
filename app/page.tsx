@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, NotebookPen, Loader2, Info, History, Download, SlidersHorizontal, ExternalLink } from 'lucide-react';
+import { Search, NotebookPen, Loader2, Info, Download, SlidersHorizontal, ExternalLink } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { ToastProvider, useToast } from '@/components/Toast';
 
@@ -33,21 +33,22 @@ type AnalyzeRes = { kpis: KPIs; neighbors: Neighbor[]; suggestions?: string[] };
 
 function numberK(n:number){ return n.toLocaleString('ja-JP'); }
 function numberYen(n:number){ return n.toLocaleString('ja-JP'); }
-function pct(n:number){ return (n*100).toFixed(1) + '%'; }
 
-function KPICard({title, value, foot}:{title:string; value:string; foot?:string}){
+function KPICard({title, value, foot, status}:{title:string; value:string; foot?:string; status?:'pos'|'neg'}) {
   return (
-    <div className="card p-4">
-      <div className="text-sm text-slate-600">{title}</div>
-      <div className="text-2xl font-semibold">{value}</div>
+    <div className="bg-white rounded-2xl shadow p-4">
+      <div className="text-sm text-slate-500">{title}</div>
+      <div className={`text-2xl font-bold ${status==='pos' ? 'text-green-600' : status==='neg' ? 'text-red-600' : 'text-slate-800'}`}>
+        {value}
+      </div>
       {foot && <div className="text-xs text-slate-500 mt-1">{foot}</div>}
     </div>
   );
 }
 
 export default function Page(){
-  const [purpose, setPurpose] = useState('地域課題の解決（例：独居高齢者の見守り強化）');
-  const [summary, setSummary] = useState('センサー設置と見守りプラットフォームの構築、相談窓口の拡充');
+  const [purpose, setPurpose] = useState('');
+  const [summary, setSummary] = useState('');
   const [budgetK, setBudgetK] = useState<number>(50000);
   const [paramsOpen, setParamsOpen] = useState(false);
   const [weight_sum, setWeightSum] = useState(0.6);
@@ -58,21 +59,7 @@ export default function Page(){
   const [loading, setLoading] = useState(false);
   const [kpis, setKpis] = useState<KPIs|null>(null);
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
-  const [selected, setSelected] = useState<Neighbor|null>(null);
   const { push } = useToast();
-
-  // Local history in browser (downloadable)
-  const [history, setHistory] = useState<any[]>([]);
-  useEffect(()=>{
-    const h = localStorage.getItem('history');
-    if (h) setHistory(JSON.parse(h));
-  }, []);
-
-  function saveHistory(entry:any){
-    const arr = [entry, ...history].slice(0, 200);
-    setHistory(arr);
-    localStorage.setItem('history', JSON.stringify(arr));
-  }
 
   async function analyze(){
     try {
@@ -92,13 +79,6 @@ export default function Page(){
       if ('error' in data) throw new Error(data.error);
       setKpis(data.kpis);
       setNeighbors(data.neighbors);
-
-      saveHistory({
-        at: new Date().toISOString(),
-        input: { purpose, summary, budgetK, params: { weight_sum, weight_ass, topK, tau } },
-        output: data
-      });
-
       push('分析完了');
     } catch (e:any) {
       console.error(e);
@@ -106,14 +86,6 @@ export default function Page(){
     } finally {
       setLoading(false);
     }
-  }
-
-  function downloadHistory(){
-    const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'history.json'; a.click();
-    URL.revokeObjectURL(url);
   }
 
   const diffInfo = useMemo(()=>{
@@ -126,125 +98,119 @@ export default function Page(){
 
   return (
     <ToastProvider>
-      <main className="container py-8 space-y-6">
-        <header className="text-center">
-          <motion.h1 initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            className="text-3xl md:text-4xl font-extrabold tracking-tight">政策立案 予算シミュレーション</motion.h1>
-          <p className="text-slate-600 mt-2">OpenAI埋め込み + Top-K 重み付き対数平均で推定</p>
+      <div className="min-h-screen bg-[#F8F9FA]">
+        {/* ヘッダー */}
+        <header className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-500 to-purple-700 shadow text-white">
+          <h1 className="text-xl font-bold">政策立案予算シミュレーション</h1>
+          <div className="space-x-2">
+            <button className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white">+ 新規作成</button>
+            <button className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white">保存</button>
+            <button className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-slate-700">データ出力</button>
+          </div>
         </header>
 
-        <section className="grid lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 card p-4 space-y-3">
-            <div className="grid md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
-                <label className="label">現状・目的（課題）</label>
-                <textarea className="input h-24" value={purpose} onChange={e=> setPurpose(e.target.value)} />
-              </div>
-              <div className="md:col-span-2">
-                <label className="label">事業概要（施策）</label>
-                <textarea className="input h-24" value={summary} onChange={e=> setSummary(e.target.value)} />
-              </div>
-              <div>
-                <label className="label">提案予算（千円）</label>
-                <input className="input" type="number" min={0} value={budgetK} onChange={e=> setBudgetK(Number(e.target.value||0))} />
-              </div>
-              <div>
-                <label className="label">パラメータ</label><br/>
-                <button className="btn" onClick={()=> setParamsOpen(true)}><SlidersHorizontal size={16} className="inline mr-1" /> 調整</button>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button className="btn" onClick={analyze}>
+        <main className="p-6 space-y-6">
+          {/* KPIカード */}
+          <div className="grid grid-cols-4 gap-4">
+            <KPICard title="推定予算（千円）" value={kpis ? numberK(kpis.estimatedBudgetK) : '—'} />
+            <KPICard title="類似事業件数" value={kpis ? String(kpis.neighborsCount) : '—'} foot={kpis ? `K=${kpis.topK}` : undefined} />
+            <KPICard title="比較（差額・千円）" value={diffInfo ? numberK(diffInfo.diffK) : '—'} foot={diffInfo ? `差：${diffInfo.pct.toFixed(1)}%` : undefined} status={diffInfo ? (diffInfo.diffK >= 0 ? 'pos' : 'neg') : undefined} />
+            <KPICard title="重みと温度" value={kpis ? `sum:${kpis.weight_sum} / ass:${kpis.weight_ass}` : '—'} foot={kpis ? `tau=${kpis.tau}` : undefined} />
+          </div>
+
+          {/* 2カラム */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* 左: 入力フォーム */}
+            <div className="bg-white rounded-2xl shadow p-4 space-y-3">
+              <label className="block text-sm font-medium text-slate-700">現状・目的（課題）</label>
+              <textarea className="input h-24" value={purpose} onChange={e=> setPurpose(e.target.value)} />
+
+              <label className="block text-sm font-medium text-slate-700">事業概要（施策）</label>
+              <textarea className="input h-24" value={summary} onChange={e=> setSummary(e.target.value)} />
+
+              <label className="block text-sm font-medium text-slate-700">提案予算（千円）</label>
+              <input className="input" type="number" min={0} value={budgetK} onChange={e=> setBudgetK(Number(e.target.value||0))} />
+
+              <button className="btn w-full bg-indigo-600 hover:bg-indigo-700 text-white" onClick={analyze}>
                 <Search size={16} className="inline mr-1" /> 分析する
               </button>
-              <button className="btn" onClick={()=> {
-                navigator.clipboard.writeText(JSON.stringify({ purpose, summary, budgetK }, null, 2));
-              }}>
-                <NotebookPen size={16} className="inline mr-1" /> 入力をコピー
-              </button>
+            </div>
+
+            {/* 右: 補助情報 */}
+            <div className="space-y-3">
+              <div className="bg-white rounded-2xl shadow p-4 flex gap-2 items-center">
+                <Info size={16} className="text-indigo-500" />
+                <p className="text-sm text-slate-600">CSV（7MB程度）をServerless起動時に読み込みます。初回アクセスは少し時間がかかる場合があります。</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow p-4">
+                <button className="btn w-full bg-gray-200 hover:bg-gray-300 text-slate-700">
+                  <Download size={16} className="inline mr-1" /> 履歴をダウンロード（準備中）
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <KPICard title="推定予算（千円）" value={kpis ? numberK(kpis.estimatedBudgetK) : '—'} />
-              <KPICard title="類似事業件数（Top-K）" value={kpis ? String(kpis.neighborsCount) : '—'}
-                foot={kpis ? `K=${kpis.topK}` : undefined} />
-              <KPICard title="比較（差額・千円）" value={diffInfo ? numberK(diffInfo.diffK) : '—'}
-                foot={diffInfo ? `提案との差：${diffInfo.pct.toFixed(1)}%` : undefined} />
-              <KPICard title="重みと温度" value={kpis ? `sum:${kpis.weight_sum} / ass:${kpis.weight_ass}` : '—'}
-                foot={kpis ? `tau=${kpis.tau}` : undefined} />
-            </div>
-            <div className="card p-4 flex gap-2 items-center">
-              <Info size={16} className="text-slate-500" />
-              <p className="text-sm text-slate-600">CSV（7MB程度）をServerless起動時に読み込みます。初回アクセスは少し時間がかかる場合があります。</p>
-            </div>
-            <div className="card p-3">
-              <button className="btn w-full" onClick={downloadHistory}>
-                <Download size={16} className="inline mr-1" /> 履歴をダウンロード（JSON）
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section className="card p-4">
-          {loading ? (
-            <div className="flex items-center gap-2 text-slate-600">
-              <Loader2 className="animate-spin" size={18} /> 分析中...
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-slate-500">
-                    <th className="py-2">事業名 / 府省庁</th>
-                    <th className="py-2">予算（円）</th>
-                    <th className="py-2">score</th>
-                    <th className="py-2">概要</th>
-                    <th className="py-2 text-right">リンク</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {neighbors.map((n, i)=> (
-                    <tr key={n.id + '_' + i} className="hover:bg-white/60">
-                      <td className="py-2">
-                        <div className="font-medium">{n.title}</div>
-                        <div className="text-xs text-slate-500">{n.ministry} / {n.bureau}</div>
-                      </td>
-                      <td className="py-2">{numberYen(n.budgetYen)} 円</td>
-                      <td className="py-2">{n.score.toFixed(3)} <span className="text-xs text-slate-500">(w:{n.weight.toFixed(3)})</span></td>
-                      <td className="py-2 line-clamp-2">{n.summary}</td>
-                      <td className="py-2 text-right">
-                        {n.url ? <a className="btn" href={n.url} target="_blank" rel="noreferrer">開く <ExternalLink size={14} className="inline ml-1" /></a> : <span className="text-slate-400">—</span>}
-                      </td>
+          {/* 分析結果テーブル */}
+          <section className="bg-white rounded-2xl shadow p-4">
+            {loading ? (
+              <div className="flex items-center gap-2 text-slate-700">
+                <Loader2 className="animate-spin text-indigo-500" size={18} /> 分析中...
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="py-2 px-2">事業名 / 府省庁</th>
+                      <th className="py-2 px-2">予算（円）</th>
+                      <th className="py-2 px-2">score</th>
+                      <th className="py-2 px-2">概要</th>
+                      <th className="py-2 px-2 text-right">リンク</th>
                     </tr>
-                  ))}
-                  {neighbors.length === 0 && (
-                    <tr><td className="py-6 text-slate-500" colSpan={5}>結果はまだありません。入力して「分析する」を押してください。</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                  </thead>
+                  <tbody>
+                    {neighbors.map((n, i)=> (
+                      <tr key={n.id + '_' + i} className="hover:bg-slate-100">
+                        <td className="py-2 px-2">
+                          <div className="font-medium text-slate-800">{n.title}</div>
+                          <div className="text-xs text-slate-500">{n.ministry} / {n.bureau}</div>
+                        </td>
+                        <td className="py-2 px-2">{numberYen(n.budgetYen)} 円</td>
+                        <td className="py-2 px-2">{n.score.toFixed(3)} <span className="text-xs text-slate-500">(w:{n.weight.toFixed(3)})</span></td>
+                        <td className="py-2 px-2 line-clamp-2 text-slate-700">{n.summary}</td>
+                        <td className="py-2 px-2 text-right">
+                          {n.url ? <a className="px-2 py-1 rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100" href={n.url} target="_blank" rel="noreferrer">開く <ExternalLink size={14} className="inline ml-1" /></a> : <span className="text-slate-400">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                    {neighbors.length === 0 && (
+                      <tr><td className="py-6 text-slate-500" colSpan={5}>結果はまだありません。</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </main>
+      </div>
 
-        <Modal open={paramsOpen} onClose={()=> setParamsOpen(false)} title="検索パラメータ">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <label className="label">weight_sum（概要）</label>
-            <input className="input" type="number" step="0.1" value={weight_sum}
-              onChange={e=> setWeightSum(Number(e.target.value))} />
-            <label className="label">weight_ass（目的）</label>
-            <input className="input" type="number" step="0.1" value={weight_ass}
-              onChange={e=> setWeightAss(Number(e.target.value))} />
-            <label className="label">Top-K</label>
-            <input className="input" type="number" step="1" value={topK}
-              onChange={e=> setTopK(Number(e.target.value))} />
-            <label className="label">tau</label>
-            <input className="input" type="number" step="0.01" value={tau}
-              onChange={e=> setTau(Number(e.target.value))} />
-          </div>
-        </Modal>
-      </main>
+      {/* パラメータ調整モーダル */}
+      <Modal open={paramsOpen} onClose={()=> setParamsOpen(false)} title="検索パラメータ">
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <label className="label">weight_sum（概要）</label>
+          <input className="input" type="number" step="0.1" value={weight_sum}
+            onChange={e=> setWeightSum(Number(e.target.value))} />
+          <label className="label">weight_ass（目的）</label>
+          <input className="input" type="number" step="0.1" value={weight_ass}
+            onChange={e=> setWeightAss(Number(e.target.value))} />
+          <label className="label">Top-K</label>
+          <input className="input" type="number" step="1" value={topK}
+            onChange={e=> setTopK(Number(e.target.value))} />
+          <label className="label">tau</label>
+          <input className="input" type="number" step="0.01" value={tau}
+            onChange={e=> setTau(Number(e.target.value))} />
+        </div>
+      </Modal>
     </ToastProvider>
   );
 }
