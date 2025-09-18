@@ -1,0 +1,62 @@
+[
+  {
+    "id": "p-001",
+    "name": "地域子育て支援拠点の拡充",
+    "purpose": "待機児童の解消と育児相談体制の強化",
+    "summary": "相談員の増員、オンライン相談、育児サロンの設置",
+    "budgetK": 45000,
+    "rating": "A",
+    "department": "子ども家庭課",
+    "year": 2022
+  },
+  {
+    "id": "p-002",
+    "name": "高齢者見守りIoT実証",
+    "purpose": "独居高齢者の見守りと孤立防止",
+    "summary": "センサー設置と地域連携プラットフォーム開発",
+    "budgetK": 28000,
+    "rating": "B",
+    "department": "福祉政策課",
+    "year": 2021
+  },
+  {
+    "id": "p-003",
+    "name": "観光DX推進",
+    "purpose": "観光需要回復と周遊性向上",
+    "summary": "デジタルパス導入、混雑可視化、データ連携",
+    "budgetK": 80000,
+    "rating": "B",
+    "department": "観光商工課",
+    "year": 2023
+  },
+  {
+    "id": "p-004",
+    "name": "河川防災インフラ強靭化",
+    "purpose": "水害リスク低減",
+    "summary": "河川監視システム、排水ポンプ更新、ハザード周知",
+    "budgetK": 160000,
+    "rating": "A",
+    "department": "防災危機管理課",
+    "year": 2020
+  },
+  {
+    "id": "p-005",
+    "name": "学校ICT端末更新",
+    "purpose": "学習環境のデジタル化推進",
+    "summary": "1人1台端末の更改と教員研修",
+    "budgetK": 120000,
+    "rating": "C",
+    "department": "教育政策課",
+    "year": 2022
+  },
+  {
+    "id": "p-006",
+    "name": "地域公共交通再編",
+    "purpose": "移動弱者対策と持続可能な交通網の構築",
+    "summary": "デマンド交通導入、MaaS連携",
+    "budgetK": 60000,
+    "rating": "D",
+    "department": "交通政策課",
+    "year": 2021
+  }
+]
